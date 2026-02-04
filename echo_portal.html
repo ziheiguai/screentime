@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Life Echo - 无感复盘操控台</title>
+    <style>
+        :root {
+            --apple-blue: #0071e3;
+            --apple-grey: #f5f5f7;
+            --apple-text: #1d1d1f;
+            --apple-secondary: #86868b;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            padding: 20px;
+            background: var(--apple-grey);
+            color: var(--apple-text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 500px;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: var(--apple-secondary);
+            margin-bottom: 32px;
+            font-size: 14px;
+        }
+
+        .tag {
+            display: inline-block;
+            background: #e8f3ff;
+            color: var(--apple-blue);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin: 16px 0 8px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--apple-secondary);
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 14px;
+            margin-bottom: 4px;
+            border-radius: 12px;
+            border: 1px solid #d2d2d7;
+            background: #fff;
+            font-size: 16px;
+            box-sizing: border-box;
+            transition: border-color 0.3s ease;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--apple-blue);
+        }
+
+        button {
+            width: 100%;
+            padding: 16px;
+            margin-top: 24px;
+            border-radius: 12px;
+            background: var(--apple-blue);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: opacity 0.3s ease;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        button:disabled {
+            background: #d2d2d7;
+            cursor: not-allowed;
+        }
+
+        #resultContainer {
+            margin-top: 32px;
+            padding: 20px;
+            background: #f9f9fb;
+            border-radius: 16px;
+            border: 1px solid #e5e5e7;
+            display: none;
+        }
+
+        #resultTitle {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #resultContent {
+            font-size: 15px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            color: #333;
+        }
+
+        .loader {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+            color: var(--apple-blue);
+            font-weight: 500;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <center><span class="tag">云端大脑已就绪</span></center>
+        <h1>🎙️ Smart Life Echo</h1>
+        <p class="subtitle">让你的生活产生回馈 · 网页专业版</p>
+
+        <label>选择风格</label>
+        <select id="personality">
+            <option value="neutral">客观中性风格（理智分析）</option>
+            <option value="coach">严厉效率教练（毒舌）</option>
+            <option value="butler">温情生活管家（治愈）</option>
+        </select>
+
+        <label>今日任务 (可选)</label>
+        <input type="text" id="tasks" placeholder="例如：写完作业, 跑步5公里">
+
+        <label>屏幕使用时间截图 (必选)</label>
+        <input type="file" id="imageInput" accept="image/*">
+
+        <button id="submitBtn" onclick="runEcho()">开始云端复盘</button>
+
+        <div class="loader" id="loader">🔄 正在上传截图并等待云端回响...</div>
+
+        <div id="resultContainer">
+            <div id="resultTitle">✨ AI 复盘结果</div>
+            <div id="resultContent"></div>
+        </div>
+    </div>
+
+    <script>
+        async function runEcho() {
+            const file = document.getElementById('imageInput').files[0];
+            const tasksString = document.getElementById('tasks').value;
+            const p = document.getElementById('personality').value;
+            const btn = document.getElementById('submitBtn');
+            const loader = document.getElementById('loader');
+            const resultContainer = document.getElementById('resultContainer');
+            const resultContent = document.getElementById('resultContent');
+
+            if (!file) return alert('请先上传一张屏幕使用时间截图！');
+
+            // 格式化任务
+            const taskList = tasksString ? tasksString.split(/[,，\s]+/).filter(t => t.trim()) : [];
+
+            btn.disabled = true;
+            loader.style.display = 'block';
+            resultContainer.style.display = 'none';
+
+            // 1. 读取图片文件并转为 Base64
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = async () => {
+                const base64Data = reader.result.split(',')[1];
+
+                // 2. 调用你的 Supabase 云端大脑
+                const supabaseUrl = "https://kobnjjkouzatalitkeqr.supabase.co/functions/v1/echo-process";
+
+                try {
+                    const response = await fetch(supabaseUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            screenshot_image_base64: base64Data,
+                            completed_tasks: taskList,
+                            personality: p
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+
+                    if (!data.result) {
+                        throw new Error("云端未返回结果，请检查后端日志。");
+                    }
+
+                    resultContent.innerText = data.result;
+                    resultContainer.style.display = 'block';
+                } catch (error) {
+                    console.error(error);
+                    alert(`云端处理失败！\n\n详情: ${error.message}\n\n建议排查：你的网络能否正常调用 Google Gemini 接口。`);
+                } finally {
+                    btn.disabled = false;
+                    loader.style.display = 'none';
+                }
+            };
+        }
+    </script>
+</body>
+
+</html>
